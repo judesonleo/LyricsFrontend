@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { FaDesktop, FaMobileAlt } from "react-icons/fa";
-
+import "./App.css";
 const Home = () => {
 	return (
 		<div className="bg-gray-50 min-h-screen">

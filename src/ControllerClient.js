@@ -306,6 +306,7 @@ const ControllerClient = () => {
 									<div className="song-details">
 										<div className="song-title">{song.title}</div>
 										<div className="song-artist">{song.artist}</div>
+										<div className="song-lang">{song.Language}</div>
 									</div>
 									<FaChevronRight className="song-arrow" />
 								</div>

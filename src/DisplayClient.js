@@ -216,6 +216,7 @@ const DisplayClient = () => {
 						<div>
 							<h2 className="song-title">{currentSong.title}</h2>
 							<p className="song-artist">{currentSong.artist}</p>
+							<p className="song-artist">{currentSong.Language}</p>
 						</div>
 						{currentSectionName && (
 							<div className="section-indicator">{currentSectionName}</div>
@@ -246,6 +247,7 @@ const DisplayClient = () => {
 							<div className="song-details">
 								<h1 className="song-title">{currentSong.title}</h1>
 								<p className="song-artist">{currentSong.artist}</p>
+								<p className="song-artist">{currentSong.Language}</p>
 							</div>
 
 							<div className="waiting-message">
