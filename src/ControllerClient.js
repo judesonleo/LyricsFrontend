@@ -28,7 +28,8 @@ const ControllerClient = () => {
 	const [roomToJoin, setRoomToJoin] = useState("");
 	const [showJoinRoom, setShowJoinRoom] = useState(false);
 	const wsRef = useRef(null);
-	const apiUrl = process.env.REACT_APP_API_URL || "http://localhost:5050";
+	const apiUrl =
+		process.env.REACT_APP_API_URL || "https://song-cast-server.judesonleo.me";
 	const [showFullLyrics, setShowFullLyrics] = useState(false);
 
 	useEffect(() => {
