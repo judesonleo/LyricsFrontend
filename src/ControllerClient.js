@@ -53,7 +53,8 @@ const ControllerClient = () => {
 			wsRef.current.close();
 		}
 
-		const serverUrl = process.env.REACT_APP_WS_URL || "ws://localhost:5050";
+		const serverUrl =
+			process.env.REACT_APP_WS_URL || "wss://song-cast-server.judesonleo.me";
 		const ws = new WebSocket(serverUrl);
 		wsRef.current = ws;
 
