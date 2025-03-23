@@ -1,5 +1,5 @@
 # Build stage
-FROM --platform=$TARGETPLATFORM node:18-alpine as builder
+FROM --platform=$TARGETPLATFORM node:20-alpine as builder
 
 # Add build arguments
 ARG TARGETPLATFORM
@@ -20,7 +20,7 @@ COPY . .
 RUN npm run build
 
 # Production stage
-FROM --platform=$TARGETPLATFORM node:18-alpine
+FROM --platform=$TARGETPLATFORM node:20-alpine
 
 WORKDIR /app
 
