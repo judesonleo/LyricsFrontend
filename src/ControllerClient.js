@@ -29,7 +29,7 @@ const ControllerClient = () => {
 	const [showJoinRoom, setShowJoinRoom] = useState(false);
 	const wsRef = useRef(null);
 	const apiUrl =
-		process.env.REACT_APP_API_URL || "https://song-cast-server.judesonleo.me";
+		process.env.REACT_APP_API_URL || "https://song-cast-server.judesonleo.dev";
 	const [showFullLyrics, setShowFullLyrics] = useState(false);
 
 	useEffect(() => {
@@ -54,7 +54,7 @@ const ControllerClient = () => {
 		}
 
 		const serverUrl =
-			process.env.REACT_APP_WS_URL || "wss://song-cast-server.judesonleo.me";
+			process.env.REACT_APP_WS_URL || "wss://song-cast-server.judesonleo.dev";
 		const ws = new WebSocket(serverUrl);
 		wsRef.current = ws;
 
