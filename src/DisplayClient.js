@@ -34,7 +34,7 @@ const DisplayClient = () => {
 		}
 
 		const serverUrl =
-			process.env.REACT_APP_WS_URL || "wss://song-cast-server.judesonleo.me";
+			process.env.REACT_APP_WS_URL || "wss://song-cast-server.judesonleo.dev";
 		const ws = new WebSocket(serverUrl);
 		wsRef.current = ws;
 
