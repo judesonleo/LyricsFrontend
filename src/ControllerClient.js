@@ -9,6 +9,10 @@ import {
 	FaArrowUp,
 	FaArrowDown,
 	FaDoorOpen,
+	FaPlay,
+	FaPause,
+	FaStepForward,
+	FaStepBackward,
 } from "react-icons/fa";
 import "./ControllerClient.css"; // Import the CSS file
 
@@ -31,21 +35,38 @@ const ControllerClient = () => {
 	const apiUrl =
 		process.env.REACT_APP_API_URL || "https://song-cast-server.judesonleo.dev";
 	const [showFullLyrics, setShowFullLyrics] = useState(false);
+	const [isPlaying, setIsPlaying] = useState(false);
+	const [autoScrollSpeed, setAutoScrollSpeed] = useState(1);
+	const [scrollInterval, setScrollInterval] = useState(null);
+	const [touchStartY, setTouchStartY] = useState(null);
+	const [touchStartTime, setTouchStartTime] = useState(null);
+	const [scrollMode, setScrollMode] = useState("manual"); // 'manual', 'auto', 'hold'
+	const [holdInterval, setHoldInterval] = useState(null);
+	const [scrollSpeed, setScrollSpeed] = useState(1);
+	const [isDragging, setIsDragging] = useState(false);
+	const [dragStartY, setDragStartY] = useState(null);
+	const [dragStartScroll, setDragStartScroll] = useState(null);
+	const [dragSensitivity, setDragSensitivity] = useState(1);
 
 	useEffect(() => {
 		const fetchSongs = async () => {
 			try {
+				console.log("Fetching songs from:", apiUrl);
 				const response = await fetch(`${apiUrl}/api/songs`);
+				if (!response.ok) {
+					throw new Error(`HTTP error! status: ${response.status}`);
+				}
 				const data = await response.json();
+				console.log("Received songs:", data);
 				setSongs(data);
 			} catch (err) {
-				setError("Failed to load songs");
-				console.error(err);
+				console.error("Error fetching songs:", err);
+				setError(`Failed to load songs: ${err.message}`);
 			}
 		};
 
 		fetchSongs();
-	}, []);
+	}, [apiUrl]);
 
 	const connectToRoom = (roomId = null) => {
 		// Close existing connection if any
@@ -57,7 +78,7 @@ const ControllerClient = () => {
 			process.env.REACT_APP_WS_URL || "wss://song-cast-server.judesonleo.dev";
 		const ws = new WebSocket(serverUrl);
 		wsRef.current = ws;
-
+		console.log(serverUrl);
 		ws.onopen = () => {
 			ws.send(
 				JSON.stringify({
@@ -168,20 +189,117 @@ const ControllerClient = () => {
 	const handleScroll = (direction) => {
 		if (!connected || !wsRef.current || !selectedSection) return;
 
-		// Calculate new scroll position
+		const scrollAmount = 20 * scrollSpeed;
 		const newPosition =
 			direction === "up"
-				? Math.max(0, scrollPosition - 20)
-				: scrollPosition + 20;
+				? Math.max(0, scrollPosition - scrollAmount)
+				: scrollPosition + scrollAmount;
 
 		setScrollPosition(newPosition);
-
 		wsRef.current.send(
 			JSON.stringify({
 				type: "scrollDisplay",
 				position: newPosition,
 			})
 		);
+	};
+
+	const startHoldScroll = (direction) => {
+		if (holdInterval) {
+			clearInterval(holdInterval);
+		}
+
+		const interval = setInterval(() => {
+			handleScroll(direction);
+		}, 50);
+
+		setHoldInterval(interval);
+		setScrollMode("hold");
+	};
+
+	const stopHoldScroll = () => {
+		if (holdInterval) {
+			clearInterval(holdInterval);
+			setHoldInterval(null);
+		}
+		setScrollMode("manual");
+	};
+
+	const handleTouchStart = (e) => {
+		e.preventDefault(); // Prevent default touch behavior
+		const touch = e.touches[0];
+		setTouchStartY(touch.clientY);
+		setTouchStartTime(Date.now());
+		setIsDragging(true);
+		setDragStartY(touch.clientY);
+		setDragStartScroll(scrollPosition);
+		setScrollMode("manual");
+	};
+
+	const handleTouchMove = (e) => {
+		e.preventDefault(); // Prevent default touch behavior
+		if (!isDragging) return;
+
+		const touch = e.touches[0];
+		const currentY = touch.clientY;
+		const deltaY = dragStartY - currentY;
+		const sensitivity = 0.5; // Adjust this value to change drag sensitivity
+		const newPosition = dragStartScroll + deltaY * sensitivity;
+
+		setScrollPosition(Math.max(0, newPosition));
+		if (connected && wsRef.current) {
+			wsRef.current.send(
+				JSON.stringify({
+					type: "scrollDisplay",
+					position: newPosition,
+				})
+			);
+		}
+	};
+
+	const handleTouchEnd = (e) => {
+		e.preventDefault(); // Prevent default touch behavior
+		setIsDragging(false);
+		setTouchStartY(null);
+		setTouchStartTime(null);
+	};
+
+	const handleSpeedChange = (speed) => {
+		setAutoScrollSpeed(speed);
+		if (isPlaying) {
+			stopAutoScroll();
+			startAutoScroll();
+		}
+	};
+
+	const startAutoScroll = () => {
+		if (scrollInterval) {
+			clearInterval(scrollInterval);
+		}
+
+		const interval = setInterval(() => {
+			if (isPlaying && connected && wsRef.current) {
+				const newPosition = scrollPosition + autoScrollSpeed;
+				setScrollPosition(newPosition);
+				wsRef.current.send(
+					JSON.stringify({
+						type: "scrollDisplay",
+						position: newPosition,
+					})
+				);
+			}
+		}, 50); // Adjust speed by changing interval
+
+		setScrollInterval(interval);
+		setIsPlaying(true);
+	};
+
+	const stopAutoScroll = () => {
+		if (scrollInterval) {
+			clearInterval(scrollInterval);
+			setScrollInterval(null);
+		}
+		setIsPlaying(false);
 	};
 
 	const saveDefaultRoom = () => {
@@ -387,23 +505,116 @@ const ControllerClient = () => {
 								</div>
 
 								<div className="scroll-controls">
-									<button
-										className="scroll-button up"
-										onClick={() => handleScroll("up")}
-										title="Scroll Up"
-									>
-										<FaArrowUp />
-									</button>
-									<div className="scroll-position">
-										Scroll: {scrollPosition}px
+									<div className="scroll-speed-controls">
+										<button
+											className={`speed-button ${
+												scrollSpeed === 0.5 ? "active" : ""
+											}`}
+											onClick={() => setScrollSpeed(0.5)}
+											title="Slow Speed"
+										>
+											0.5x
+										</button>
+										<button
+											className={`speed-button ${
+												scrollSpeed === 1 ? "active" : ""
+											}`}
+											onClick={() => setScrollSpeed(1)}
+											title="Normal Speed"
+										>
+											1x
+										</button>
+										<button
+											className={`speed-button ${
+												scrollSpeed === 2 ? "active" : ""
+											}`}
+											onClick={() => setScrollSpeed(2)}
+											title="Fast Speed"
+										>
+											2x
+										</button>
 									</div>
-									<button
-										className="scroll-button down"
-										onClick={() => handleScroll("down")}
-										title="Scroll Down"
+
+									<div className="scroll-mode-controls">
+										<button
+											className={`mode-button ${
+												scrollMode === "manual" ? "active" : ""
+											}`}
+											onClick={() => setScrollMode("manual")}
+											title="Manual Mode"
+										>
+											Manual
+										</button>
+										<button
+											className={`mode-button ${
+												scrollMode === "auto" ? "active" : ""
+											}`}
+											onClick={() => {
+												setScrollMode("auto");
+												startAutoScroll();
+											}}
+											title="Auto Scroll"
+										>
+											Auto
+										</button>
+										<button
+											className={`mode-button ${
+												scrollMode === "hold" ? "active" : ""
+											}`}
+											onClick={() => setScrollMode("hold")}
+											title="Hold Mode"
+										>
+											Hold
+										</button>
+									</div>
+
+									<div
+										className="scroll-area"
+										onTouchStart={handleTouchStart}
+										onTouchMove={handleTouchMove}
+										onTouchEnd={handleTouchEnd}
 									>
-										<FaArrowDown />
-									</button>
+										<div className="scroll-indicator">
+											<div
+												className="scroll-progress"
+												style={{
+													height: `${(scrollPosition / 100) * 100}%`,
+												}}
+											/>
+										</div>
+										<div className="scroll-text">
+											{isDragging ? "Release to stop" : "Drag to scroll"}
+										</div>
+									</div>
+
+									<div className="scroll-buttons">
+										<button
+											className="scroll-button hold-button"
+											onTouchStart={() => startHoldScroll("up")}
+											onTouchEnd={stopHoldScroll}
+											onMouseDown={() => startHoldScroll("up")}
+											onMouseUp={stopHoldScroll}
+											onMouseLeave={stopHoldScroll}
+											title="Hold to scroll up"
+										>
+											<FaArrowUp />
+										</button>
+										<button
+											className="scroll-button hold-button"
+											onTouchStart={() => startHoldScroll("down")}
+											onTouchEnd={stopHoldScroll}
+											onMouseDown={() => startHoldScroll("down")}
+											onMouseUp={stopHoldScroll}
+											onMouseLeave={stopHoldScroll}
+											title="Hold to scroll down"
+										>
+											<FaArrowDown />
+										</button>
+									</div>
+
+									<div className="scroll-position">
+										Position: {Math.round(scrollPosition)}%
+									</div>
 								</div>
 							</>
 						)}

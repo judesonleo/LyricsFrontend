@@ -287,3 +287,148 @@ body {
 		flex-direction: column;
 	}
 }
+
+.App {
+	text-align: center;
+	min-height: 100vh;
+	background-color: #f5f5f5;
+}
+
+.App-header {
+	background-color: #fff;
+	padding: 20px;
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+	margin-bottom: 20px;
+}
+
+.App-header h1 {
+	margin: 0;
+	color: #333;
+	font-size: 24px;
+}
+
+.mode-toggle {
+	margin-top: 10px;
+	padding: 8px 16px;
+	background-color: #2196f3;
+	color: white;
+	border: none;
+	border-radius: 4px;
+	cursor: pointer;
+	font-size: 14px;
+	transition: background-color 0.2s;
+}
+
+.mode-toggle:hover {
+	background-color: #1976d2;
+}
+
+main {
+	padding: 0 20px;
+	max-width: 1200px;
+	margin: 0 auto;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+	.App-header {
+		padding: 15px;
+	}
+
+	.App-header h1 {
+		font-size: 20px;
+	}
+
+	main {
+		padding: 0 10px;
+	}
+}
+
+.room-input-container {
+	max-width: 500px;
+	margin: 40px auto;
+	padding: 20px;
+	background-color: white;
+	border-radius: 8px;
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.room-input-form {
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
+}
+
+.form-group {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.form-group label {
+	font-weight: 600;
+	color: #333;
+}
+
+.form-group input[type="text"] {
+	padding: 10px;
+	border: 1px solid #ddd;
+	border-radius: 4px;
+	font-size: 16px;
+}
+
+.mode-selection {
+	display: flex;
+	gap: 20px;
+	justify-content: center;
+	margin: 10px 0;
+}
+
+.mode-selection label {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	cursor: pointer;
+}
+
+.connect-button {
+	padding: 12px 24px;
+	background-color: #4caf50;
+	color: white;
+	border: none;
+	border-radius: 4px;
+	font-size: 16px;
+	cursor: pointer;
+	transition: background-color 0.2s;
+}
+
+.connect-button:hover {
+	background-color: #45a049;
+}
+
+.error {
+	color: #dc3545;
+	background-color: #f8d7da;
+	border: 1px solid #f5c6cb;
+	padding: 15px;
+	margin: 20px;
+	border-radius: 4px;
+	text-align: center;
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+	.room-input-container {
+		margin: 20px;
+		padding: 15px;
+	}
+
+	.mode-selection {
+		flex-direction: column;
+		gap: 10px;
+	}
+
+	.connect-button {
+		width: 100%;
+	}
+}

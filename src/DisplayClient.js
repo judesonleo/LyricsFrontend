@@ -13,14 +13,35 @@ const DisplayClient = () => {
 	const [defaultRoom, setDefaultRoom] = useState(
 		localStorage.getItem("defaultRoom") || ""
 	);
+	const [isFullscreen, setIsFullscreen] = useState(false);
 	const lyricsRef = useRef(null);
 	const wsRef = useRef(null);
+	const containerRef = useRef(null);
+	const [currentContent, setCurrentContent] = useState(null);
+	const [currentLanguage, setCurrentLanguage] = useState("en");
+	const [languages, setLanguages] = useState([
+		{ code: "en", name: "English" },
+		{ code: "kn", name: "Kannada" },
+		{ code: "te", name: "Telugu" },
+	]);
 
 	// Load default room on mount
 	useEffect(() => {
 		if (defaultRoom) {
 			setSessionId(defaultRoom);
 		}
+	}, []);
+
+	// Handle fullscreen changes
+	useEffect(() => {
+		const handleFullscreenChange = () => {
+			setIsFullscreen(!!document.fullscreenElement);
+		};
+
+		document.addEventListener("fullscreenchange", handleFullscreenChange);
+		return () => {
+			document.removeEventListener("fullscreenchange", handleFullscreenChange);
+		};
 	}, []);
 
 	const connectToSession = () => {
@@ -39,57 +60,84 @@ const DisplayClient = () => {
 		wsRef.current = ws;
 
 		ws.onopen = () => {
+			console.log("[Display] WebSocket connected");
 			ws.send(
 				JSON.stringify({
-					type: "init",
-					clientType: "display",
-					sessionId: sessionId,
+					type: "join",
+					roomId: sessionId,
 				})
 			);
 		};
 
 		ws.onmessage = (event) => {
-			const data = JSON.parse(event.data);
+			console.log("[Display] Received message:", event.data);
+			try {
+				const data = JSON.parse(event.data);
+				console.log("[Display] Parsed message data:", data);
 
-			if (data.type === "error") {
-				setError(data.message);
-				setConnected(false);
-			} else if (data.type === "songSelected") {
-				setCurrentSong(data.song);
-				setCurrentSection(null);
-				setCurrentSectionName("");
-				setScrollPosition(0);
-				setConnected(true);
-				setError("");
-			} else if (data.type === "displaySection") {
-				setCurrentSection(data.section);
-				setCurrentSectionName(data.sectionName || "");
-				setScrollPosition(data.scrollPosition || 0);
+				if (data.type === "error") {
+					setError(data.message);
+					setConnected(false);
+				} else if (data.type === "songSelected") {
+					setCurrentSong(data.song);
+					setCurrentSection(null);
+					setCurrentSectionName("");
+					setScrollPosition(0);
+					setConnected(true);
+					setError("");
+				} else if (data.type === "displaySection") {
+					setCurrentSection(data.section);
+					setCurrentSectionName(data.sectionName || "");
+					setScrollPosition(data.scrollPosition || 0);
 
-				// Reset scroll position when section changes
-				if (lyricsRef.current) {
-					lyricsRef.current.scrollTop = 0;
+					// Reset scroll position when section changes
+					if (lyricsRef.current) {
+						lyricsRef.current.scrollTop = 0;
+					}
+				} else if (data.type === "scrollDisplay") {
+					setScrollPosition(data.position);
+
+					// Apply scroll with smooth behavior
+					if (lyricsRef.current) {
+						lyricsRef.current.scrollTo({
+							top: data.position,
+							behavior: "smooth",
+						});
+					}
+				} else if (data.type === "controllerDisconnected") {
+					setError(
+						"Controller disconnected. The session will remain active for 5 minutes."
+					);
+				} else if (data.type === "song") {
+					console.log("[Display] Setting song content:", data.song);
+					setCurrentContent({
+						type: "song",
+						title: data.song.title,
+						lyrics: data.song.lyrics,
+					});
+				} else if (data.type === "bible") {
+					console.log("[Display] Setting Bible content:", data);
+					setCurrentContent({
+						type: "bible",
+						reference: data.reference,
+						text: data.text,
+						language: data.language,
+					});
+					setCurrentLanguage(data.language);
 				}
-			} else if (data.type === "scrollDisplay") {
-				setScrollPosition(data.position);
-
-				// Apply scroll
-				if (lyricsRef.current) {
-					lyricsRef.current.scrollTop = data.position;
-				}
-			} else if (data.type === "controllerDisconnected") {
-				setError(
-					"Controller disconnected. The session will remain active for 5 minutes."
-				);
+			} catch (error) {
+				console.error("[Display] Error parsing message:", error);
 			}
 		};
 
 		ws.onclose = () => {
+			console.log("[Display] WebSocket disconnected");
 			setConnected(false);
 			setError("Connection closed");
 		};
 
-		ws.onerror = () => {
+		ws.onerror = (error) => {
+			console.error("[Display] WebSocket error:", error);
 			setConnected(false);
 			setError("Connection error");
 		};
@@ -105,10 +153,14 @@ const DisplayClient = () => {
 	// Effect for updating scroll position
 	useEffect(() => {
 		if (lyricsRef.current) {
-			lyricsRef.current.scrollTop = scrollPosition;
+			lyricsRef.current.scrollTo({
+				top: scrollPosition,
+				behavior: "smooth",
+			});
 		}
 	}, [scrollPosition]);
 
+	// Cleanup on unmount
 	useEffect(() => {
 		return () => {
 			if (wsRef.current) {
@@ -129,10 +181,42 @@ const DisplayClient = () => {
 		alert("Default room cleared");
 	};
 
+	const toggleFullscreen = () => {
+		if (!document.fullscreenElement) {
+			containerRef.current?.requestFullscreen();
+		} else {
+			document.exitFullscreen();
+		}
+	};
+
 	const displayMode = connected && currentSong && currentSection;
+
+	const handleLanguageChange = (e) => {
+		const newLanguage = e.target.value;
+		console.log("[Display] Language changed to:", newLanguage);
+		setCurrentLanguage(newLanguage);
+		if (
+			currentContent?.type === "bible" &&
+			wsRef.current &&
+			wsRef.current.readyState === WebSocket.OPEN
+		) {
+			console.log("[Display] Requesting verse in new language:", newLanguage);
+			wsRef.current.send(
+				JSON.stringify({
+					type: "bible",
+					action: "select",
+					reference: currentContent.reference,
+					language: newLanguage,
+				})
+			);
+		}
+	};
+
+	console.log("[Display] Current content:", currentContent);
 
 	return (
 		<div
+			ref={containerRef}
 			className={`display-client-container ${
 				displayMode ? "display-mode" : ""
 			}`}
@@ -213,30 +297,41 @@ const DisplayClient = () => {
 
 			{displayMode ? (
 				<div className="fullscreen-display">
-					<div className="song-info">
-						<div>
-							<h2 className="song-title">{currentSong.title}</h2>
-							<p className="song-artist">{currentSong.artist}</p>
-							<p className="song-artist">{currentSong.Language}</p>
+					<div className="display-header">
+						<h2>Display Mode</h2>
+						<div className="language-selector">
+							<select value={currentLanguage} onChange={handleLanguageChange}>
+								{languages.map((lang) => (
+									<option key={lang.code} value={lang.code}>
+										{lang.name}
+									</option>
+								))}
+							</select>
 						</div>
-						{currentSectionName && (
-							<div className="section-indicator">{currentSectionName}</div>
-						)}
 					</div>
 
-					<div className="lyrics-display">
-						<div className="lyrics-content" ref={lyricsRef}>
-							{currentSection.split("\n").map((line, i) => (
-								<div
-									key={i}
-									className={`lyrics-line ${
-										line.trim() === "" ? "empty-line" : ""
-									}`}
-								>
-									{line}
+					<div className="content-display">
+						{currentContent ? (
+							currentContent.type === "song" ? (
+								<div className="song-display">
+									<h3>{currentContent.title}</h3>
+									<div className="lyrics">
+										{currentContent.lyrics.split("\n").map((line, index) => (
+											<p key={index}>{line}</p>
+										))}
+									</div>
 								</div>
-							))}
-						</div>
+							) : (
+								<div className="bible-display">
+									<h3>{currentContent.reference}</h3>
+									<div className="verse-text">{currentContent.text}</div>
+								</div>
+							)
+						) : (
+							<div className="no-content">
+								<p>No content selected</p>
+							</div>
+						)}
 					</div>
 
 					<div className="session-info">{sessionId}</div>
@@ -250,25 +345,14 @@ const DisplayClient = () => {
 								<p className="song-artist">{currentSong.artist}</p>
 								<p className="song-artist">{currentSong.Language}</p>
 							</div>
-
 							<div className="waiting-message">
-								<div className="music-icon">🎵</div>
-								<p>Waiting for a section to be selected...</p>
+								Waiting for section selection...
 							</div>
 						</div>
 					) : (
 						<div className="no-song-display">
-							<div className="music-icon">🎵</div>
 							<div className="waiting-message">
-								{connected
-									? "Waiting for song selection..."
-									: "Connect to a session to display lyrics"}
-							</div>
-							<div className="instructions">
-								Enter the session ID provided by the controller to display
-								lyrics in full screen mode. Perfect for worship services,
-								presentations, or any event that needs lyrics projection.
-								{defaultRoom && <p>Default room: {defaultRoom}</p>}
+								Enter a session ID to connect
 							</div>
 						</div>
 					)}
